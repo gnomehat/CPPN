@@ -61,9 +61,9 @@ class Generator(nn.Module):
         r_pt = self.linear_r(r.view(args.batch_size*n_points, -1))
         U = z_pt + x_pt + y_pt + r_pt
         H = torch.tanh(U)
-        H = F.tanh(self.linear_h(H))
-        H = F.tanh(self.linear_h(H))
-        H = F.tanh(self.linear_h(H))
+        H = torch.tanh(self.linear_h(H))
+        H = torch.tanh(self.linear_h(H))
+        H = torch.tanh(self.linear_h(H))
         #x = self.sigmoid(self.linear_out(H))
         x = torch.sigmoid(self.linear_out(H))
         x = x.view(args.batch_size, self.c_dim, args.y_dim, args.x_dim)
