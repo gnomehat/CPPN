@@ -18,9 +18,9 @@ if __name__ == '__main__':
     args.n = 3
     args.num_frames = 120
     args.interpolation = 'sigmoid'
-    args.y_dim = 256
+    args.y_dim = 512
     args.scale = 10
-    args.x_dim = 256
+    args.x_dim = 512
     args.net = 32
     args.c_dim = 1
     args.exp = 'test'
