@@ -25,8 +25,8 @@ def load_args():
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--exp', default='0', type=str, help='output fn')
 
-    parser.add_argument('--walk', default=False, type=bool, help='interpolate')
-    parser.add_argument('--sample', default=False, type=bool, help='sample n images')
+    parser.add_argument('--walk', default=False, type=bool, help='Generate a smooth video interpolation through the latent space')
+    parser.add_argument('--sample', default=False, type=bool, help='Sample images independently from the latent space')
 
     parser.add_argument('--render_video', default=False, type=bool, help='If walk mode is enabled, output an mp4 video')
     parser.add_argument('--interpolation', default='linear', type=str, help='One of: linear, sigmoid')
@@ -103,18 +103,17 @@ def init(model):
     return model
 
 
-def latent_walk(args, z1, z2, netG, interpolation='linear'):
-    total_frames = args.num_frames + 2
+def latent_walk(args, z1, z2, netG):
     states = []
-    for i in range(total_frames):
+    for i in range(args.num_frames):
         if args.interpolation == 'linear':
-            theta = float(i) / (args.num_frames + 1)
+            theta = (i + 0.5) / (args.num_frames)
         elif args.interpolation == 'sigmoid':
-            steepness = 8
-            gamma = -0.5 + float(i) / (args.num_frames + 1)
+            steepness = 12
+            gamma = -0.5 + (i + 0.5) / (args.num_frames)
             theta = 1 / (1 + np.exp(-gamma * steepness))
 
-        z = theta * z1 + (1 - theta) * z2
+        z = theta * z2 + (1 - theta) * z1
         if args.c_dim == 1:
             states.append(sample(args, netG, z)[0][0]*255)
         else:
@@ -129,7 +128,7 @@ def cppn(args):
     print (netG)
     n_images = args.n
     zs = []
-    for _ in range(n_images):
+    for _ in range(args.n):
         zs.append(torch.zeros(1, args.z).uniform_(-1.0, 1.0))
 
     if args.walk:
@@ -138,18 +137,19 @@ def cppn(args):
             filename = 'cppn_walk_{}.mp4'.format(int(time.time()))
             print('Writing video filename {}'.format(filename))
             vid = imutil.Video(filename)
-        for i in range(n_images):
-            print('Generating latent walk {}'.format(i))
-            z1, z2 = zs[i], zs[(i + 1) % n_images]
+        for i in range(args.n):
+            print('Generating latent walk {}...'.format(i))
+            z1, z2 = zs[i], zs[(i + 1) % args.n]
             images = latent_walk(args, z1, z2, netG)
+            print('Writing {} frames...'.format(len(images)))
             for img in images:
                 if args.render_video:
-                    print('Writing frame {}'.format(k))
                     vid.write_frame(img)
                 else:
                     imwrite('{}_{}.jpg'.format(args.exp, k), img)
                 k += 1
-            print ('walked {}/{}'.format(i+1, n_images))
+            print('Walked through {}/{} control points, {}/{} frames'.format(
+                i+1, args.n, k, args.n*args.num_frames))
         if args.render_video:
             vid.finish()
 
