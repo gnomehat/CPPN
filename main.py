@@ -15,7 +15,9 @@ if __name__ == '__main__':
     args = load_args()
     args.walk = True
     args.render_video = True
-    args.n = 3
+    args.n = 4
+    args.num_frames = 60
+    args.interpolation = 'sigmoid'
     args.y_dim = 512
     args.x_dim = 512
     args.scale = 10

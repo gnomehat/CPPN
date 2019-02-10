@@ -8,6 +8,7 @@ from torch import nn
 from torch import optim
 from torch.nn import functional as F
 from imageio import imwrite
+import imutil
 import time
 
 
@@ -28,6 +29,8 @@ def load_args():
     parser.add_argument('--sample', default=False, type=bool, help='sample n images')
 
     parser.add_argument('--render_video', default=False, type=bool, help='If walk mode is enabled, output an mp4 video')
+    parser.add_argument('--interpolation', default='linear', type=str, help='One of: linear, sigmoid')
+    parser.add_argument('--num_frames', default=50, type=int, help='Number of video frames to generate')
 
     args = parser.parse_args()
     return args
@@ -100,12 +103,18 @@ def init(model):
     return model
 
 
-def latent_walk(args, z1, z2, n_frames, netG):
-    delta = (z2 - z1) / (n_frames + 1)
-    total_frames = n_frames + 2
+def latent_walk(args, z1, z2, netG, interpolation='linear'):
+    total_frames = args.num_frames + 2
     states = []
     for i in range(total_frames):
-        z = z1 + delta * float(i)
+        if args.interpolation == 'linear':
+            theta = float(i) / (args.num_frames + 1)
+        elif args.interpolation == 'sigmoid':
+            steepness = 8
+            gamma = -0.5 + float(i) / (args.num_frames + 1)
+            theta = 1 / (1 + np.exp(-gamma * steepness))
+
+        z = theta * z1 + (1 - theta) * z2
         if args.c_dim == 1:
             states.append(sample(args, netG, z)[0][0]*255)
         else:
@@ -114,7 +123,7 @@ def latent_walk(args, z1, z2, n_frames, netG):
     states = torch.stack(states).detach().numpy()
     return states
 
-        
+
 def cppn(args):
     netG = init(Generator(args))
     print (netG)
@@ -126,15 +135,13 @@ def cppn(args):
     if args.walk:
         k = 0
         if args.render_video:
-            import imutil
             filename = 'cppn_walk_{}.mp4'.format(int(time.time()))
             print('Writing video filename {}'.format(filename))
-            vid = imutil.VideoLoop(filename)
+            vid = imutil.Video(filename)
         for i in range(n_images):
-            if i+1 not in range(n_images):
-                images = latent_walk(args, zs[i], zs[0], 50, netG)
-                break
-            images = latent_walk(args, zs[i], zs[i+1], 50, netG)
+            print('Generating latent walk {}'.format(i))
+            z1, z2 = zs[i], zs[(i + 1) % n_images]
+            images = latent_walk(args, z1, z2, netG)
             for img in images:
                 if args.render_video:
                     print('Writing frame {}'.format(k))
@@ -155,7 +162,7 @@ def cppn(args):
             else:
                 img = img[0].reshape((args.x_dim, args.y_dim, args.c_dim))
             imwrite('{}_{}.png'.format(args.exp, i), img*255)
-    
+
 if __name__ == '__main__':
 
     args = load_args()
