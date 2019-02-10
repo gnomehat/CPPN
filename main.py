@@ -13,10 +13,11 @@ from cppn import load_args, cppn
 
 if __name__ == '__main__':
     args = load_args()
-    args.sample = True
-    args.n = 10
-    args.y_dim = 1080
-    args.x_dim = 1080
+    args.walk = True
+    args.render_video = True
+    args.n = 3
+    args.y_dim = 512
+    args.x_dim = 512
     args.scale = 10
     args.net = 32
     args.c_dim = 1

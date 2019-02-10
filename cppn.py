@@ -8,6 +8,7 @@ from torch import nn
 from torch import optim
 from torch.nn import functional as F
 from imageio import imwrite
+import time
 
 
 def load_args():
@@ -25,6 +26,8 @@ def load_args():
 
     parser.add_argument('--walk', default=False, type=bool, help='interpolate')
     parser.add_argument('--sample', default=False, type=bool, help='sample n images')
+
+    parser.add_argument('--render_video', default=False, type=bool, help='If walk mode is enabled, output an mp4 video')
 
     args = parser.parse_args()
     return args
@@ -122,15 +125,26 @@ def cppn(args):
 
     if args.walk:
         k = 0
+        if args.render_video:
+            import imutil
+            filename = 'cppn_walk_{}.mp4'.format(int(time.time()))
+            print('Writing video filename {}'.format(filename))
+            vid = imutil.VideoLoop(filename)
         for i in range(n_images):
             if i+1 not in range(n_images):
                 images = latent_walk(args, zs[i], zs[0], 50, netG)
                 break
             images = latent_walk(args, zs[i], zs[i+1], 50, netG)
             for img in images:
-                imwrite('{}_{}.jpg'.format(args.exp, k), img)
+                if args.render_video:
+                    print('Writing frame {}'.format(k))
+                    vid.write_frame(img)
+                else:
+                    imwrite('{}_{}.jpg'.format(args.exp, k), img)
                 k += 1
             print ('walked {}/{}'.format(i+1, n_images))
+        if args.render_video:
+            vid.finish()
 
     if args.sample:
         zs, _ = torch.stack(zs).sort()
